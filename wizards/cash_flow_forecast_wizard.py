@@ -36,6 +36,43 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         help='Si se activa, se consideran también los asientos contables en estado borrador.',
     )
 
+    what_if_mode = fields.Boolean(
+        string='Modo what-if',
+        default=False,
+        help='Permite ajustar fechas de cobros y pagos para simular escenarios.',
+    )
+    receivable_delay_days = fields.Integer(
+        string='Retraso cobros (días)',
+        default=0,
+        help='Días adicionales para el vencimiento de las facturas de cliente.',
+    )
+    payable_delay_days = fields.Integer(
+        string='Retraso pagos (días)',
+        default=0,
+        help='Días adicionales para el vencimiento de las facturas de proveedor.',
+    )
+
+    min_balance = fields.Monetary(
+        string='Saldo mínimo proyectado',
+        compute='_compute_summary',
+        currency_field='currency_id',
+    )
+    final_balance = fields.Monetary(
+        string='Saldo final proyectado',
+        compute='_compute_summary',
+        currency_field='currency_id',
+    )
+    has_negative_balance = fields.Boolean(
+        string='¿Tiene saldo negativo?',
+        compute='_compute_summary',
+    )
+    currency_id = fields.Many2one(
+        comodel_name='res.currency',
+        string='Moneda',
+        related='company_id.currency_id',
+        readonly=True,
+    )
+
     line_ids = fields.One2many(
         comodel_name='proxit.cash.flow.forecast.line',
         inverse_name='wizard_id',
@@ -63,6 +100,7 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         lines_vals = self._compute_forecast()
         commands = [(0, 0, vals) for vals in lines_vals]
         self.line_ids = commands
+        self._compute_summary()
 
         return {
             'type': 'ir.actions.act_window',
@@ -79,24 +117,49 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
             },
         }
 
+    def _compute_summary(self):
+        """Calcula saldo mínimo, final y alerta de negativo."""
+        lines = self.line_ids.sorted(key=lambda l: l.balance)
+        if lines:
+            self.min_balance = lines[0].balance
+            last = self.line_ids.sorted(key=lambda l: (l.date, l.sequence), reverse=True)
+            self.final_balance = last[0].balance if last else 0
+            self.has_negative_balance = self.min_balance < 0
+        else:
+            self.min_balance = 0
+            self.final_balance = 0
+            self.has_negative_balance = False
+
+    def _apply_what_if(self, movements):
+        """Ajusta fechas de movimientos según modo what-if."""
+        if not self.what_if_mode:
+            return movements
+        delay_map = {'receivable': self.receivable_delay_days, 'payable': self.payable_delay_days}
+        import datetime
+        for m in movements:
+            delay = delay_map.get(m['movement_type'], 0)
+            if delay:
+                from datetime import timedelta
+                m['date'] = m['date'] + timedelta(days=delay)
+        return movements
+
     def _compute_forecast(self):
         """Retorna la lista de dicts para crear las líneas de proyección."""
         self.ensure_one()
         movements = []
 
-        # 1. Saldo base por diario
+        # 1. Saldo base por diario (siempre se muestra, aunque sea 0)
         base_by_journal = self._get_base_balance()
         total_base = sum(base_by_journal.values())
-        if total_base:
-            movements.append({
-                'date': self.date_as_of,
-                'sequence': 0,
-                'description': 'Saldo inicial',
-                'amount': total_base,
-                'balance': total_base,
-                'movement_type': 'opening',
-                'company_id': self.company_id.id,
-            })
+        movements.append({
+            'date': self.date_as_of,
+            'sequence': 0,
+            'description': 'Saldo inicial',
+            'amount': total_base,
+            'balance': total_base,
+            'movement_type': 'opening',
+            'company_id': self.company_id.id,
+        })
 
         # 2. Facturas de cliente pendientes (cobros)
         movements += self._get_receivable_moves()
@@ -113,7 +176,10 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         # 6. Cheques propios pendientes de débito (futuros egresos)
         movements += self._get_own_check_moves()
 
-        # 7. Ordenar por fecha y secuencia, luego acumular saldo
+        # 7. Aplicar modo what-if
+        movements = self._apply_what_if(movements)
+
+        # 8. Ordenar por fecha y secuencia, luego acumular saldo
         movements.sort(key=lambda m: (m['date'], m['sequence']))
         running = total_base
         for move in movements:
