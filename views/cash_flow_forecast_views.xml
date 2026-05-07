@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Wizard: formulario de entrada -->
+    <record id="view_proxit_cash_flow_forecast_wizard_form" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.wizard.form</field>
+        <field name="model">proxit.cash.flow.forecast.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Proyección de Flujo de Caja">
+                <group name="input" string="Parámetros">
+                    <group>
+                        <field name="company_id" string="Compañía"
+                               groups="base.group_multi_company"/>
+                        <field name="date_as_of" string="Fecha base"/>
+                        <field name="include_draft_moves" string="Incluir borradores"/>
+                    </group>
+                    <group>
+                        <field name="journal_ids" string="Diarios"
+                               widget="many2many_tags"/>
+                        <field name="date_horizon" string="Fecha horizonte"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_generate_forecast" string="Calcular proyección"
+                            type="object" class="btn-primary"/>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vista tree para los resultados -->
+    <record id="view_proxit_cash_flow_forecast_line_tree" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.tree</field>
+        <field name="model">proxit.cash.flow.forecast.line</field>
+        <field name="arch" type="xml">
+            <list string="Proyección día por día" multi_edit="0">
+                <field name="date" string="Fecha"/>
+                <field name="movement_type" string="Origen" widget="badge"
+                       decoration-info="movement_type == 'opening'"
+                       decoration-success="movement_type in ('receivable', 'manual_income')"
+                       decoration-danger="movement_type in ('payable', 'manual_expense')"/>
+                <field name="description" string="Concepto"/>
+                <field name="partner_id" string="Partner" optional="show"/>
+                <field name="reference" string="Referencia" optional="hide"/>
+                <field name="amount" string="Movimiento" widget="monetary"
+                       decoration-success="amount > 0" decoration-danger="amount &lt; 0"/>
+                <field name="balance" string="Saldo acumulado" widget="monetary"
+                       decoration-danger="balance &lt; 0"/>
+                <field name="journal_id" string="Diario" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vista form contenedora: wizard + resultados -->
+    <record id="view_proxit_cash_flow_forecast_result_form" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.result.form</field>
+        <field name="model">proxit.cash.flow.forecast.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Proyección de Flujo de Caja">
+                <sheet>
+                    <group name="params" string="Parámetros">
+                        <field name="company_id" string="Compañía" invisible="1"/>
+                        <field name="date_as_of" string="Desde"/>
+                        <field name="date_horizon" string="Hasta"/>
+                        <field name="include_draft_moves" invisible="1"/>
+                    </group>
+                    <field name="line_ids" nolabel="1"
+                           context="{'tree_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_tree'}"/>
+                </sheet>
+                <footer>
+                    <button name="action_generate_forecast" string="Recalcular"
+                            type="object" class="btn-primary"/>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción del wizard -->
+    <record id="action_proxit_cash_flow_forecast_wizard" model="ir.actions.act_window">
+        <field name="name">Proyección de Flujo de Caja</field>
+        <field name="res_model">proxit.cash.flow.forecast.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

@@ -24,6 +24,7 @@ Todas las etiquetas y documentación están en español.
     'data': [
         'security/ir.model.access.csv',
         'views/cash_flow_manual_line_views.xml',
+        'views/cash_flow_forecast_views.xml',
         'views/menus.xml',
     ],
     'installable': True,
