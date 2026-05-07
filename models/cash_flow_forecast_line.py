@@ -46,6 +46,8 @@ class ProxitCashFlowForecastLine(models.TransientModel):
             ('payable', 'Pago previsto'),
             ('manual_income', 'Ingreso manual'),
             ('manual_expense', 'Egreso manual'),
+            ('third_party_check', 'Cheque de tercero'),
+            ('own_check', 'Cheque propio'),
         ],
         string='Origen',
     )

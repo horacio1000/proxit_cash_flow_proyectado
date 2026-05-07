@@ -35,8 +35,8 @@
                 <field name="date" string="Fecha"/>
                 <field name="movement_type" string="Origen" widget="badge"
                        decoration-info="movement_type == 'opening'"
-                       decoration-success="movement_type in ('receivable', 'manual_income')"
-                       decoration-danger="movement_type in ('payable', 'manual_expense')"/>
+                       decoration-success="movement_type in ('receivable', 'manual_income', 'third_party_check')"
+                       decoration-danger="movement_type in ('payable', 'manual_expense', 'own_check')"/>
                 <field name="description" string="Concepto"/>
                 <field name="partner_id" string="Partner" optional="show"/>
                 <field name="reference" string="Referencia" optional="hide"/>

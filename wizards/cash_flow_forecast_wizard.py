@@ -5,7 +5,8 @@
 from collections import defaultdict
 from datetime import date
 
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class ProxitCashFlowForecastWizard(models.TransientModel):
@@ -106,7 +107,13 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         # 4. Líneas manuales confirmadas
         movements += self._get_manual_moves()
 
-        # 5. Ordenar por fecha y secuencia, luego acumular saldo
+        # 5. Cheques de terceros pendientes de depósito (futuros ingresos)
+        movements += self._get_third_party_check_moves()
+
+        # 6. Cheques propios pendientes de débito (futuros egresos)
+        movements += self._get_own_check_moves()
+
+        # 7. Ordenar por fecha y secuencia, luego acumular saldo
         movements.sort(key=lambda m: (m['date'], m['sequence']))
         running = total_base
         for move in movements:
@@ -257,3 +264,67 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
             'journal_id': line.journal_id.id,
             'company_id': line.company_id.id,
         } for line in lines]
+
+    # -----------------------------------------------------------------
+    # CHEQUES DE TERCEROS (futuros ingresos)
+    # -----------------------------------------------------------------
+
+    def _get_third_party_check_moves(self):
+        """Retorna movimientos de cheques de terceros pendientes de depósito."""
+        self.ensure_one()
+        try:
+            Check = self.env['l10n_latam.check']
+        except KeyError:
+            return []
+        checks = Check.search([
+            ('payment_method_code', '=', 'new_third_party_checks'),
+            ('payment_id.state', 'not in', ['draft', 'canceled', 'rejected']),
+            ('payment_date', '>=', self.date_as_of),
+            ('payment_date', '<=', self.date_horizon),
+            ('company_id', '=', self.company_id.id),
+            ('current_journal_id.inbound_payment_method_line_ids.payment_method_id.code', '=', 'in_third_party_checks'),
+        ])
+        return [{
+            'date': check.payment_date,
+            'sequence': 8,
+            'description': 'Cheque tercero - %s' % (check.partner_id.display_name or ''),
+            'partner_id': check.partner_id.id,
+            'reference': check.name,
+            'amount': check.amount,
+            'balance': 0,
+            'movement_type': 'third_party_check',
+            'journal_id': check.current_journal_id.id,
+            'company_id': check.company_id.id,
+        } for check in checks if check.amount]
+
+    # -----------------------------------------------------------------
+    # CHEQUES PROPIOS (futuros egresos)
+    # -----------------------------------------------------------------
+
+    def _get_own_check_moves(self):
+        """Retorna movimientos de cheques propios pendientes de débito."""
+        self.ensure_one()
+        try:
+            Check = self.env['l10n_latam.check']
+        except KeyError:
+            return []
+        checks = Check.search([
+            ('payment_method_code', '=', 'own_checks'),
+            ('payment_id.state', 'not in', ['draft', 'canceled', 'rejected']),
+            ('issue_state', '=', 'handed'),
+            ('payment_date', '>=', self.date_as_of),
+            ('payment_date', '<=', self.date_horizon),
+            ('company_id', '=', self.company_id.id),
+        ])
+        return [{
+            'date': check.payment_date,
+            'sequence': 8,
+            'description': 'Cheque propio - %s' % (check.partner_id.display_name or ''),
+            'partner_id': check.partner_id.id,
+            'reference': check.name,
+            'amount': -check.amount,
+            'balance': 0,
+            'movement_type': 'own_check',
+            'journal_id': check.original_journal_id.id,
+            'company_id': check.company_id.id,
+        } for check in checks if check.amount]
