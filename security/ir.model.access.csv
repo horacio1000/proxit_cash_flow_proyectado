@@ -1,4 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_proxit_cash_flow_manual_line_accountant,manual.line.accountant,model_proxit_cash_flow_manual_line,account.group_account_manager,1,1,1,1
-access_proxit_cash_flow_forecast_wizard_accountant,forecast.wizard.accountant,model_proxit_cash_flow_forecast_wizard,account.group_account_manager,1,1,1,1
-access_proxit_cash_flow_forecast_line_accountant,forecast.line.accountant,model_proxit_cash_flow_forecast_line,account.group_account_manager,1,0,0,0
+access_proxit_cash_flow_forecast_wizard_user,forecast.wizard.user,model_proxit_cash_flow_forecast_wizard,base.group_user,1,1,1,1
+access_proxit_cash_flow_forecast_line_user,forecast.line.user,model_proxit_cash_flow_forecast_line,base.group_user,1,1,1,1

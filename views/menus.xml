@@ -5,7 +5,7 @@
               name="Flujo de Caja Proyectado"
               parent="account.account_reports_legal_statements_menu"
               sequence="16"
-              groups="account.group_account_readonly,account.group_account_basic">
+              groups="account.group_account_manager">
 
         <!-- Proyección -->
         <menuitem id="menu_proxit_cash_flow_forecast"

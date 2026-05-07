@@ -5,8 +5,7 @@
 from collections import defaultdict
 from datetime import date
 
-from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo import api, fields, models
 
 
 class ProxitCashFlowForecastWizard(models.TransientModel):
@@ -18,12 +17,6 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         string='Compañía',
         required=True,
         default=lambda self: self.env.company,
-    )
-    journal_ids = fields.Many2many(
-        comodel_name='account.journal',
-        string='Diarios',
-        domain="[('type', 'in', ('bank', 'cash', 'credit'))]",
-        required=True,
     )
     date_as_of = fields.Date(
         string='Fecha base',
@@ -53,26 +46,36 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
     # CÁLCULO PRINCIPAL
     # -----------------------------------------------------------------
 
+    def _get_liquidity_journals(self):
+        return self.env['account.journal'].search([
+            ('type', 'in', ('bank', 'cash', 'credit')),
+            ('company_id', '=', self.company_id.id),
+        ])
+
     def action_generate_forecast(self):
         self.ensure_one()
         self.line_ids.unlink()
-
-        if not self.journal_ids:
-            raise UserError(_('Debe seleccionar al menos un diario.'))
 
         if self.date_horizon < self.date_as_of:
             raise UserError(_('La fecha horizonte debe ser posterior o igual a la fecha base.'))
 
         lines_vals = self._compute_forecast()
-        self.line_ids = lines_vals
+        commands = [(0, 0, vals) for vals in lines_vals]
+        self.line_ids = commands
 
         return {
             'type': 'ir.actions.act_window',
-            'res_model': 'proxit.cash.flow.forecast.wizard',
-            'view_mode': 'form',
-            'res_id': self.id,
+            'name': 'Proyección de Flujo de Caja',
+            'res_model': 'proxit.cash.flow.forecast.line',
+            'view_mode': 'list,graph,pivot',
+            'domain': [('wizard_id', '=', self.id)],
             'target': 'new',
-            'context': self.env.context,
+            'context': {
+                'tree_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_tree',
+                'graph_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_graph',
+                'pivot_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_pivot',
+                'search_default_group_by_date': True,
+            },
         }
 
     def _compute_forecast(self):
@@ -124,6 +127,10 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         if self.include_draft_moves:
             state_filter = "'posted', 'draft'"
 
+        journals = self._get_liquidity_journals()
+        if not journals:
+            return {}
+
         query = """
             SELECT aml.journal_id, COALESCE(SUM(aml.balance), 0.0) AS balance
             FROM account_move_line aml
@@ -137,7 +144,7 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
             GROUP BY aml.journal_id
         """ % state_filter
 
-        self.env.cr.execute(query, [self.date_as_of, tuple(self.journal_ids.ids), self.company_id.id])
+        self.env.cr.execute(query, [self.date_as_of, tuple(journals.ids), self.company_id.id])
         rows = self.env.cr.dictfetchall()
         return {r['journal_id']: r['balance'] for r in rows}
 
@@ -230,12 +237,13 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
     def _get_manual_moves(self):
         """Retorna movimientos desde líneas manuales confirmadas."""
         self.ensure_one()
+        journals = self._get_liquidity_journals()
         lines = self.env['proxit.cash.flow.manual.line'].search([
             ('state', '=', 'confirmed'),
             ('date_expected', '>=', self.date_as_of),
             ('date_expected', '<=', self.date_horizon),
             ('company_id', '=', self.company_id.id),
-            ('journal_id', 'in', self.journal_ids.ids),
+            ('journal_id', 'in', journals.ids),
         ])
         return [{
             'date': line.date_expected,

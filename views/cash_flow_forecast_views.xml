@@ -11,11 +11,9 @@
                         <field name="company_id" string="Compañía"
                                groups="base.group_multi_company"/>
                         <field name="date_as_of" string="Fecha base"/>
-                        <field name="include_draft_moves" string="Incluir borradores"/>
                     </group>
                     <group>
-                        <field name="journal_ids" string="Diarios"
-                               widget="many2many_tags"/>
+                        <field name="include_draft_moves" string="Incluir borradores"/>
                         <field name="date_horizon" string="Fecha horizonte"/>
                     </group>
                 </group>
@@ -28,7 +26,7 @@
         </field>
     </record>
 
-    <!-- Vista tree para los resultados -->
+    <!-- Vista list para los resultados -->
     <record id="view_proxit_cash_flow_forecast_line_tree" model="ir.ui.view">
         <field name="name">proxit.cash.flow.forecast.line.tree</field>
         <field name="model">proxit.cash.flow.forecast.line</field>
@@ -51,28 +49,45 @@
         </field>
     </record>
 
-    <!-- Vista form contenedora: wizard + resultados -->
-    <record id="view_proxit_cash_flow_forecast_result_form" model="ir.ui.view">
-        <field name="name">proxit.cash.flow.forecast.result.form</field>
-        <field name="model">proxit.cash.flow.forecast.wizard</field>
+    <!-- Vista gráfico (barra) para los resultados -->
+    <record id="view_proxit_cash_flow_forecast_line_graph" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.graph</field>
+        <field name="model">proxit.cash.flow.forecast.line</field>
         <field name="arch" type="xml">
-            <form string="Proyección de Flujo de Caja">
-                <sheet>
-                    <group name="params" string="Parámetros">
-                        <field name="company_id" string="Compañía" invisible="1"/>
-                        <field name="date_as_of" string="Desde"/>
-                        <field name="date_horizon" string="Hasta"/>
-                        <field name="include_draft_moves" invisible="1"/>
-                    </group>
-                    <field name="line_ids" nolabel="1"
-                           context="{'tree_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_tree'}"/>
-                </sheet>
-                <footer>
-                    <button name="action_generate_forecast" string="Recalcular"
-                            type="object" class="btn-primary"/>
-                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
+            <graph type="bar" string="Evolución del saldo proyectado">
+                <field name="date" interval="day"/>
+                <field name="balance" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Vista pivot para los resultados -->
+    <record id="view_proxit_cash_flow_forecast_line_pivot" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.pivot</field>
+        <field name="model">proxit.cash.flow.forecast.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Flujo de caja por período" disable_linking="1">
+                <field name="date" interval="month" type="row"/>
+                <field name="movement_type" type="col"/>
+                <field name="amount" type="measure"/>
+                <field name="balance" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Vista search para filtros en resultados -->
+    <record id="view_proxit_cash_flow_forecast_line_search" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.search</field>
+        <field name="model">proxit.cash.flow.forecast.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar en proyección">
+                <field name="date" string="Fecha"/>
+                <field name="description" string="Concepto"/>
+                <field name="movement_type" string="Origen"/>
+                <field name="partner_id" string="Partner"/>
+                <filter name="group_by_date" string="Agrupar por fecha"
+                        context="{'group_by': 'date:day'}"/>
+            </search>
         </field>
     </record>
 
