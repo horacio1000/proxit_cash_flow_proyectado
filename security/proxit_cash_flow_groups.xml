@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Privilegio para agrupar los grupos del módulo -->
+    <record id="privilege_proxit_cash_flow" model="res.groups.privilege">
+        <field name="name">Flujo de Caja</field>
+        <field name="sequence">90</field>
+    </record>
+
+    <!-- Grupo: Usuario de Flujo de Caja -->
+    <record id="group_proxit_cash_flow_user" model="res.groups">
+        <field name="name">Usuario</field>
+        <field name="privilege_id" ref="privilege_proxit_cash_flow"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <!-- Grupo: Administrador de Flujo de Caja -->
+    <record id="group_proxit_cash_flow_manager" model="res.groups">
+        <field name="name">Administrador</field>
+        <field name="privilege_id" ref="privilege_proxit_cash_flow"/>
+        <field name="implied_ids" eval="[(4, ref('proxit_cash_flow.group_proxit_cash_flow_user'))]"/>
+    </record>
+</odoo>

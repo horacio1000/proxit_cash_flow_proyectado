@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menú raíz -->
+    <menuitem id="menu_proxit_cash_flow_root"
+              name="Flujo de Caja"
+              sequence="90"
+              web_icon="proxit_cash_flow,static/description/icon.png"/>
+
+    <!-- Submenú: Líneas Manuales -->
+    <menuitem id="menu_proxit_cash_flow_manual_lines"
+              name="Líneas Manuales"
+              parent="menu_proxit_cash_flow_root"
+              action="action_proxit_cash_flow_manual_line"
+              sequence="10"/>
+
+    <!-- Submenú: Proyección (placeholder para Fase 2) -->
+    <menuitem id="menu_proxit_cash_flow_forecast"
+              name="Proyección"
+              parent="menu_proxit_cash_flow_root"
+              sequence="20"/>
+</odoo>

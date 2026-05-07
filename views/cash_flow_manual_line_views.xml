@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista tree (lista) -->
+    <record id="view_proxit_cash_flow_manual_line_tree" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.manual.line.tree</field>
+        <field name="model">proxit.cash.flow.manual.line</field>
+        <field name="arch" type="xml">
+            <list string="Líneas Manuales" multi_edit="1">
+                <field name="name" string="Descripción"/>
+                <field name="movement_type" string="Tipo" widget="badge"
+                       decoration-success="movement_type == 'income'"
+                       decoration-danger="movement_type == 'expense'"/>
+                <field name="amount" string="Importe" widget="monetary"
+                       decoration-danger="amount &lt; 0"/>
+                <field name="date_expected" string="Fecha esperada"/>
+                <field name="state" string="Estado" widget="badge"
+                       decoration-muted="state == 'draft'"
+                       decoration-success="state == 'confirmed'"
+                       decoration-primary="state == 'done'"
+                       decoration-danger="state == 'cancelled'"/>
+                <field name="journal_id" string="Diario" optional="hide"/>
+                <field name="company_id" string="Compañía" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vista form -->
+    <record id="view_proxit_cash_flow_manual_line_form" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.manual.line.form</field>
+        <field name="model">proxit.cash.flow.manual.line</field>
+        <field name="arch" type="xml">
+            <form string="Línea Manual de Flujo de Caja">
+                <header>
+                    <button name="action_confirm" string="Confirmar" type="object"
+                            invisible="state != 'draft'"
+                            class="btn-primary"/>
+                    <button name="action_done" string="Realizado" type="object"
+                            invisible="state != 'confirmed'"
+                            class="btn-success"/>
+                    <button name="action_cancel" string="Cancelar" type="object"
+                            invisible="state not in ('draft', 'confirmed')"
+                            class="btn-danger"/>
+                    <button name="action_draft" string="Volver a Borrador" type="object"
+                            invisible="state not in ('done', 'cancelled')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Describa el movimiento..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group name="left" string="Detalles">
+                            <field name="movement_type" string="Tipo"/>
+                            <field name="amount" string="Importe" widget="monetary"/>
+                            <field name="date_expected" string="Fecha esperada"/>
+                            <field name="journal_id" string="Diario"
+                                   domain="[('type', 'in', ('bank', 'cash', 'credit'))]"/>
+                        </group>
+                        <group name="right" string="Organización">
+                            <field name="company_id" string="Compañía"
+                                   groups="base.group_multi_company"/>
+                            <field name="currency_id" string="Moneda"/>
+                        </group>
+                    </group>
+                    <group string="Notas">
+                        <field name="notes" nolabel="1" placeholder="Notas adicionales..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vista search -->
+    <record id="view_proxit_cash_flow_manual_line_search" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.manual.line.search</field>
+        <field name="model">proxit.cash.flow.manual.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Líneas Manuales">
+                <field name="name" string="Descripción"/>
+                <field name="movement_type" string="Tipo"/>
+                <field name="state" string="Estado"/>
+                <field name="journal_id" string="Diario"/>
+                <separator/>
+                <filter name="filter_income" string="Ingresos"
+                        domain="[('movement_type', '=', 'income')]"/>
+                <filter name="filter_expense" string="Egresos"
+                        domain="[('movement_type', '=', 'expense')]"/>
+                <separator/>
+                <filter name="filter_draft" string="Borrador"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_confirmed" string="Confirmado"
+                        domain="[('state', '=', 'confirmed')]"/>
+                <filter name="filter_done" string="Realizado"
+                        domain="[('state', '=', 'done')]"/>
+                <filter name="filter_cancelled" string="Cancelado"
+                        domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter name="filter_today" string="Hoy"
+                        date="date_expected"/>
+                <group>
+                    <filter name="group_by_type" string="Tipo"
+                            context="{'group_by': 'movement_type'}"/>
+                    <filter name="group_by_state" string="Estado"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_by_date" string="Fecha esperada"
+                            context="{'group_by': 'date_expected'}"/>
+                    <filter name="group_by_journal" string="Diario"
+                            context="{'group_by': 'journal_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Acción de ventana -->
+    <record id="action_proxit_cash_flow_manual_line" model="ir.actions.act_window">
+        <field name="name">Líneas Manuales</field>
+        <field name="res_model">proxit.cash.flow.manual.line</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_proxit_cash_flow_manual_line_search"/>
+        <field name="help" type="html">
+            <p>Registre aquí movimientos de efectivo proyectados que aún no están contabilizados en la contabilidad.</p>
+            <p>Por ejemplo: cobros previstos, pagos planificados, transferencias entre cuentas.</p>
+        </field>
+    </record>
+</odoo>
