@@ -54,9 +54,9 @@
         <field name="name">proxit.cash.flow.forecast.line.graph</field>
         <field name="model">proxit.cash.flow.forecast.line</field>
         <field name="arch" type="xml">
-            <graph type="bar" string="Evolución del saldo proyectado">
+            <graph type="bar" string="Flujo de caja neto por día">
                 <field name="date" interval="day"/>
-                <field name="balance" type="measure"/>
+                <field name="amount" type="measure"/>
             </graph>
         </field>
     </record>
@@ -70,7 +70,6 @@
                 <field name="date" interval="month" type="row"/>
                 <field name="movement_type" type="col"/>
                 <field name="amount" type="measure"/>
-                <field name="balance" type="measure"/>
             </pivot>
         </field>
     </record>
