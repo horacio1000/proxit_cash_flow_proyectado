@@ -1,21 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Menú raíz -->
-    <menuitem id="menu_proxit_cash_flow_root"
-              name="Flujo de Caja"
-              sequence="90"
-              web_icon="proxit_cash_flow,static/description/icon.png"/>
-
-    <!-- Submenú: Líneas Manuales -->
+    <!-- Menú principal bajo Contabilidad → Reportes → Estados Legales -->
     <menuitem id="menu_proxit_cash_flow_manual_lines"
-              name="Líneas Manuales"
-              parent="menu_proxit_cash_flow_root"
+              name="Flujo de Caja Proyectado"
+              parent="account.account_reports_legal_statements_menu"
               action="action_proxit_cash_flow_manual_line"
-              sequence="10"/>
-
-    <!-- Submenú: Proyección (placeholder para Fase 2) -->
-    <menuitem id="menu_proxit_cash_flow_forecast"
-              name="Proyección"
-              parent="menu_proxit_cash_flow_root"
-              sequence="20"/>
+              sequence="16"
+              groups="account.group_account_readonly,account.group_account_basic"/>
 </odoo>

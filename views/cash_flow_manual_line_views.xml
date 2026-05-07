@@ -117,7 +117,7 @@
     <record id="action_proxit_cash_flow_manual_line" model="ir.actions.act_window">
         <field name="name">Líneas Manuales</field>
         <field name="res_model">proxit.cash.flow.manual.line</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_proxit_cash_flow_manual_line_search"/>
         <field name="help" type="html">
             <p>Registre aquí movimientos de efectivo proyectados que aún no están contabilizados en la contabilidad.</p>

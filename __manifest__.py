@@ -22,12 +22,11 @@ Todas las etiquetas y documentación están en español.
         'account',
     ],
     'data': [
-        'security/proxit_cash_flow_groups.xml',
         'security/ir.model.access.csv',
         'views/cash_flow_manual_line_views.xml',
         'views/menus.xml',
     ],
     'installable': True,
-    'application': True,
+    'application': False,
     'auto_install': False,
 }
