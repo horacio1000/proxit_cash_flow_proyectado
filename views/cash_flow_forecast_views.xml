@@ -1,23 +1,137 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Wizard: formulario de entrada -->
+    <!-- Wizard: formulario de entrada / dashboard -->
     <record id="view_proxit_cash_flow_forecast_wizard_form" model="ir.ui.view">
         <field name="name">proxit.cash.flow.forecast.wizard.form</field>
         <field name="model">proxit.cash.flow.forecast.wizard</field>
         <field name="arch" type="xml">
             <form string="Proyección de Flujo de Caja">
-                <group name="input" string="Parámetros">
-                    <group>
-                        <field name="company_id" string="Compañía"
-                               groups="base.group_multi_company"/>
-                        <field name="date_as_of" string="Fecha base"/>
+                <field name="state" invisible="1"/>
+
+                <!-- Header buttons only in dashboard mode -->
+                <header invisible="state != 'result'">
+                    <button name="action_back_to_input" string="Volver a parámetros"
+                            type="object" class="btn-secondary"/>
+                    <button name="action_open_graph" string="Gráfico"
+                            type="object" class="btn-info"/>
+                    <button name="action_open_pivot" string="Tabla dinámica"
+                            type="object" class="btn-info"/>
+                    <button name="action_generate_forecast" string="Recalcular"
+                            type="object" class="btn-primary"/>
+                </header>
+
+                <sheet>
+                    <!-- ===== DASHBOARD CONTENT ===== -->
+                    <group invisible="state != 'result'" name="dashboard">
+                        <div class="oe_title">
+                            <h1>Proyección de Flujo de Caja</h1>
+                            <div class="text-muted">
+                                <field name="date_as_of"/> → <field name="date_horizon"/>
+                                <span invisible="what_if_mode == False">
+                                    &#160;|&#160; What-if: cobros +<field name="receivable_delay_days"/>d, pagos +<field name="payable_delay_days"/>d
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- KPI cards row -->
+                        <div class="row mt16 mb16">
+                            <div class="col mb8">
+                                <div class="card h-100">
+                                    <div class="card-body text-center py-3">
+                                        <div class="text-muted text-uppercase small">Saldo Inicial</div>
+                                        <div class="h4 mb-0 fw-bold"><field name="initial_balance" widget="monetary"/></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col mb8">
+                                <div class="card h-100">
+                                    <div class="card-body text-center py-3">
+                                        <div class="text-muted text-uppercase small">Ingresos</div>
+                                        <div class="h4 mb-0 fw-bold text-success"><field name="total_income" widget="monetary"/></div>
+                                        <div class="text-muted small"><field name="income_count"/> movimientos</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col mb8">
+                                <div class="card h-100">
+                                    <div class="card-body text-center py-3">
+                                        <div class="text-muted text-uppercase small">Egresos</div>
+                                        <div class="h4 mb-0 fw-bold text-danger"><field name="total_expense" widget="monetary"/></div>
+                                        <div class="text-muted small"><field name="expense_count"/> movimientos</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col mb8">
+                                <div class="card h-100">
+                                    <div class="card-body text-center py-3">
+                                        <div class="text-muted text-uppercase small">Saldo Mínimo</div>
+                                        <div class="h4 mb-0 fw-bold">
+                                            <field name="min_balance" widget="monetary"/>
+                                        </div>
+                                        <div class="text-danger small" invisible="has_negative_balance == False">
+                                            <field name="has_negative_balance" invisible="1"/>
+                                            ⚠ Saldo negativo
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col mb8">
+                                <div class="card h-100">
+                                    <div class="card-body text-center py-3">
+                                        <div class="text-muted text-uppercase small">Saldo Final</div>
+                                        <div class="h4 mb-0 fw-bold"><field name="final_balance" widget="monetary"/></div>
+                                        <div class="text-muted small" invisible="negative_days == 0">
+                                            <field name="negative_days"/> días con saldo negativo
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Forecast lines table -->
+                        <group string="Detalle de la Proyección">
+                            <field name="line_ids" nolabel="1">
+                                <list>
+                                    <field name="date" string="Fecha"/>
+                                    <field name="movement_type" string="Origen" widget="badge"
+                                           decoration-info="movement_type == 'opening'"
+                                           decoration-success="movement_type in ('receivable', 'manual_income', 'third_party_check')"
+                                           decoration-danger="movement_type in ('payable', 'manual_expense', 'own_check')"/>
+                                    <field name="description" string="Concepto"/>
+                                    <field name="partner_id" string="Partner" optional="show"/>
+                                    <field name="reference" string="Referencia" optional="hide"/>
+                                    <field name="amount" string="Movimiento" widget="monetary"
+                                           decoration-success="amount > 0" decoration-danger="amount &lt; 0"/>
+                                    <field name="balance" string="Saldo acumulado" widget="monetary"
+                                           decoration-danger="balance &lt; 0"/>
+                                    <field name="journal_id" string="Diario" optional="hide"/>
+                                </list>
+                            </field>
+                        </group>
                     </group>
-                    <group>
-                        <field name="include_draft_moves" string="Incluir borradores"/>
-                        <field name="date_horizon" string="Fecha horizonte"/>
+
+                    <!-- ===== INPUT CONTENT ===== -->
+                    <group invisible="state == 'result'" name="input">
+                        <group string="Parámetros">
+                            <group>
+                                <field name="company_id" string="Compañía"
+                                       groups="base.group_multi_company"/>
+                                <field name="date_as_of" string="Fecha base"/>
+                                <field name="date_horizon" string="Fecha horizonte"/>
+                            </group>
+                            <group>
+                                <field name="include_draft_moves" string="Incluir borradores"/>
+                                <field name="what_if_mode" string="Escenario what-if"/>
+                                <field name="receivable_delay_days" string="Retraso cobros (días)"
+                                       invisible="what_if_mode == False"/>
+                                <field name="payable_delay_days" string="Retraso pagos (días)"
+                                       invisible="what_if_mode == False"/>
+                            </group>
+                        </group>
                     </group>
-                </group>
-                <footer>
+                </sheet>
+
+                <footer invisible="state == 'result'">
                     <button name="action_generate_forecast" string="Calcular proyección"
                             type="object" class="btn-primary"/>
                     <button string="Cerrar" class="btn-secondary" special="cancel"/>
@@ -26,9 +140,9 @@
         </field>
     </record>
 
-    <!-- Vista list para los resultados -->
-    <record id="view_proxit_cash_flow_forecast_line_tree" model="ir.ui.view">
-        <field name="name">proxit.cash.flow.forecast.line.tree</field>
+    <!-- Vista lista para los resultados (standalone) -->
+    <record id="view_proxit_cash_flow_forecast_line_list" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.list</field>
         <field name="model">proxit.cash.flow.forecast.line</field>
         <field name="arch" type="xml">
             <list string="Proyección día por día" multi_edit="0">
@@ -49,7 +163,7 @@
         </field>
     </record>
 
-    <!-- Vista gráfico (barra) para los resultados -->
+    <!-- Vista gráfico (barras: movimientos netos por día) -->
     <record id="view_proxit_cash_flow_forecast_line_graph" model="ir.ui.view">
         <field name="name">proxit.cash.flow.forecast.line.graph</field>
         <field name="model">proxit.cash.flow.forecast.line</field>
@@ -57,6 +171,18 @@
             <graph type="bar" string="Flujo de caja neto por día">
                 <field name="date" interval="day"/>
                 <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Vista gráfico (línea: evolución del saldo acumulado) -->
+    <record id="view_proxit_cash_flow_forecast_line_balance_graph" model="ir.ui.view">
+        <field name="name">proxit.cash.flow.forecast.line.balance.graph</field>
+        <field name="model">proxit.cash.flow.forecast.line</field>
+        <field name="arch" type="xml">
+            <graph type="line" string="Evolución del saldo acumulado">
+                <field name="date" interval="day"/>
+                <field name="balance" type="measure"/>
             </graph>
         </field>
     </record>
@@ -74,23 +200,47 @@
         </field>
     </record>
 
-    <!-- Vista search para filtros en resultados -->
+    <!-- Vista search para forecast lines -->
     <record id="view_proxit_cash_flow_forecast_line_search" model="ir.ui.view">
         <field name="name">proxit.cash.flow.forecast.line.search</field>
         <field name="model">proxit.cash.flow.forecast.line</field>
         <field name="arch" type="xml">
             <search string="Buscar en proyección">
-                <field name="date" string="Fecha"/>
                 <field name="description" string="Concepto"/>
-                <field name="movement_type" string="Origen"/>
                 <field name="partner_id" string="Partner"/>
-                <filter name="group_by_date" string="Agrupar por fecha"
-                        context="{'group_by': 'date:day'}"/>
+                <field name="journal_id" string="Diario"/>
+                <separator/>
+                <filter name="filter_receivable" string="Cobros"
+                        domain="[('movement_type', '=', 'receivable')]"/>
+                <filter name="filter_payable" string="Pagos"
+                        domain="[('movement_type', '=', 'payable')]"/>
+                <filter name="filter_manual" string="Manuales"
+                        domain="[('movement_type', 'in', ('manual_income', 'manual_expense'))]"/>
+                <filter name="filter_checks" string="Cheques"
+                        domain="[('movement_type', 'in', ('third_party_check', 'own_check'))]"/>
+                <separator/>
+                <filter name="filter_positive" string="Positivo"
+                        domain="[('amount', '>', 0)]"/>
+                <filter name="filter_negative" string="Negativo"
+                        domain="[('amount', '&lt;', 0)]"/>
+                <separator/>
+                <filter name="filter_negative_balance" string="Saldo negativo"
+                        domain="[('balance', '&lt;', 0)]"/>
+                <group>
+                    <filter name="group_by_origin" string="Origen"
+                            context="{'group_by': 'movement_type'}"/>
+                    <filter name="group_by_journal" string="Diario"
+                            context="{'group_by': 'journal_id'}"/>
+                    <filter name="group_by_date" string="Fecha"
+                            context="{'group_by': 'date'}"/>
+                    <filter name="group_by_partner" string="Partner"
+                            context="{'group_by': 'partner_id'}"/>
+                </group>
             </search>
         </field>
     </record>
 
-    <!-- Acción del wizard -->
+    <!-- Acción del wizard (popup) -->
     <record id="action_proxit_cash_flow_forecast_wizard" model="ir.actions.act_window">
         <field name="name">Proyección de Flujo de Caja</field>
         <field name="res_model">proxit.cash.flow.forecast.wizard</field>

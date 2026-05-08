@@ -52,19 +52,52 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         help='Días adicionales para el vencimiento de las facturas de proveedor.',
     )
 
+    state = fields.Selection(
+        selection=[('input', 'Parámetros'), ('result', 'Resultado')],
+        default='input',
+        string='Estado',
+    )
+
     min_balance = fields.Monetary(
         string='Saldo mínimo proyectado',
-        compute='_compute_summary',
+        compute='_compute_kpis',
         currency_field='currency_id',
     )
     final_balance = fields.Monetary(
         string='Saldo final proyectado',
-        compute='_compute_summary',
+        compute='_compute_kpis',
         currency_field='currency_id',
     )
     has_negative_balance = fields.Boolean(
         string='¿Tiene saldo negativo?',
-        compute='_compute_summary',
+        compute='_compute_kpis',
+    )
+    initial_balance = fields.Monetary(
+        string='Saldo inicial',
+        compute='_compute_kpis',
+        currency_field='currency_id',
+    )
+    total_income = fields.Monetary(
+        string='Total ingresos',
+        compute='_compute_kpis',
+        currency_field='currency_id',
+    )
+    total_expense = fields.Monetary(
+        string='Total egresos',
+        compute='_compute_kpis',
+        currency_field='currency_id',
+    )
+    income_count = fields.Integer(
+        string='Cantidad de ingresos',
+        compute='_compute_kpis',
+    )
+    expense_count = fields.Integer(
+        string='Cantidad de egresos',
+        compute='_compute_kpis',
+    )
+    negative_days = fields.Integer(
+        string='Días con saldo negativo',
+        compute='_compute_kpis',
     )
     currency_id = fields.Many2one(
         comodel_name='res.currency',
@@ -100,35 +133,92 @@ class ProxitCashFlowForecastWizard(models.TransientModel):
         lines_vals = self._compute_forecast()
         commands = [(0, 0, vals) for vals in lines_vals]
         self.line_ids = commands
-        self._compute_summary()
+        self.state = 'result'
 
         return {
             'type': 'ir.actions.act_window',
             'name': 'Proyección de Flujo de Caja',
-            'res_model': 'proxit.cash.flow.forecast.line',
-            'view_mode': 'list,graph,pivot',
-            'domain': [('wizard_id', '=', self.id)],
-            'target': 'new',
-            'context': {
-                'tree_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_tree',
-                'graph_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_graph',
-                'pivot_view_ref': 'proxit_cash_flow.view_proxit_cash_flow_forecast_line_pivot',
-                'search_default_group_by_date': True,
-            },
+            'res_model': 'proxit.cash.flow.forecast.wizard',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {'create': False, 'delete': False},
         }
 
-    def _compute_summary(self):
-        """Calcula saldo mínimo, final y alerta de negativo."""
-        lines = self.line_ids.sorted(key=lambda l: l.balance)
-        if lines:
-            self.min_balance = lines[0].balance
-            last = self.line_ids.sorted(key=lambda l: (l.date, l.sequence), reverse=True)
-            self.final_balance = last[0].balance if last else 0
-            self.has_negative_balance = self.min_balance < 0
-        else:
-            self.min_balance = 0
-            self.final_balance = 0
-            self.has_negative_balance = False
+    def action_back_to_input(self):
+        self.state = 'input'
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Proyección de Flujo de Caja',
+            'res_model': 'proxit.cash.flow.forecast.wizard',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'create': False, 'delete': False},
+        }
+
+    def action_open_graph(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Gráfico de Flujo de Caja',
+            'res_model': 'proxit.cash.flow.forecast.line',
+            'view_mode': 'graph',
+            'domain': [('wizard_id', '=', self.id)],
+            'target': 'new',
+            'context': {'create': False, 'delete': False},
+        }
+
+    def action_open_pivot(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Tabla dinámica de Flujo de Caja',
+            'res_model': 'proxit.cash.flow.forecast.line',
+            'view_mode': 'pivot',
+            'domain': [('wizard_id', '=', self.id)],
+            'target': 'new',
+            'context': {'create': False, 'delete': False},
+        }
+
+    def _compute_kpis(self):
+        """Calcula todos los KPI del dashboard."""
+        for wizard in self:
+            lines = wizard.line_ids
+            if not lines:
+                wizard.min_balance = 0
+                wizard.final_balance = 0
+                wizard.has_negative_balance = False
+                wizard.initial_balance = 0
+                wizard.total_income = 0
+                wizard.total_expense = 0
+                wizard.income_count = 0
+                wizard.expense_count = 0
+                wizard.negative_days = 0
+                continue
+
+            opening = lines.filtered(lambda l: l.movement_type == 'opening')
+            wizard.initial_balance = opening[0].amount if opening else 0
+
+            income_lines = lines.filtered(lambda l: l.amount > 0 and l.movement_type != 'opening')
+            expense_lines = lines.filtered(lambda l: l.amount < 0 and l.movement_type != 'opening')
+
+            wizard.total_income = sum(income_lines.mapped('amount'))
+            wizard.total_expense = sum(expense_lines.mapped('amount'))
+            wizard.income_count = len(income_lines)
+            wizard.expense_count = len(expense_lines)
+
+            wizard.min_balance = min(lines.mapped('balance'))
+            wizard.has_negative_balance = wizard.min_balance < 0
+
+            last_line = lines.sorted(key=lambda l: (l.date, l.sequence), reverse=True)
+            wizard.final_balance = last_line[0].balance if last_line else 0
+
+            neg_dates = set()
+            for line in lines:
+                if line.balance < 0:
+                    neg_dates.add(line.date)
+            wizard.negative_days = len(neg_dates)
 
     def _apply_what_if(self, movements):
         """Ajusta fechas de movimientos según modo what-if."""
